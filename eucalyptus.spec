@@ -1,4 +1,4 @@
-# Copyright 2009-2016 Hewlett Packard Enterprise Development Company LP
+# Copyright 2009-2017 Hewlett Packard Enterprise Development Company LP
 #
 # Redistribution and use of this software in source and binary forms, with or
 # without modification, are permitted provided that the following conditions
@@ -27,9 +27,13 @@
 
 %{!?python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 
+# Meant to be used with ''rpmbuild -bc''
+# You must also install coverity-analysis.
+%bcond_with coverity
+
 Summary:       Eucalyptus cloud platform
 Name:          eucalyptus
-Version:       4.3.0.1
+Version:       4.4.0
 Release:       0%{?build_id:.%build_id}%{?dist}
 License:       GPLv3
 URL:           http://www.eucalyptus.com
@@ -139,7 +143,7 @@ This package contains the common-java files.
 %package common-java-libs
 Summary:      Eucalyptus cloud platform - ws java stack libs
 
-Requires:     eucalyptus-java-deps
+Requires:     eucalyptus-java-deps >= 4.4
 Requires:     eucalyptus-selinux
 Requires:     jpackage-utils
 Requires:     java-1.8.0-openjdk >= 1:1.8.0
@@ -185,6 +189,7 @@ Requires:     librados2%{?_isa}
 Requires:     librbd1%{?_isa}
 Requires:     lvm2
 Requires:     scsi-target-utils
+Requires:     /usr/bin/rbd
 
 Provides:     eucalyptus-storage = %{version}-%{release}
 
@@ -245,7 +250,6 @@ Requires:     libselinux-python
 Requires:     python-argparse
 Requires:     rsync
 Requires:     vconfig
-Requires:     vtun
 Requires:     /usr/bin/which
 %{?systemd_requires}
 
@@ -272,7 +276,7 @@ Requires:     bridge-utils
 Requires:     device-mapper
 Requires:     device-mapper-multipath
 Requires:     euca2ools >= 3.2
-Requires:     eucalyptus-selinux
+Requires:     eucalyptus-selinux > 0.2
 Requires:     eucanetd = %{version}-%{release}
 Requires:     httpd
 Requires:     iscsi-initiator-utils
@@ -340,7 +344,7 @@ License:        GPLv3
 
 Requires:       dhcp >= 4.1.1-33.P1
 Requires:       ebtables
-Requires:       eucalyptus-selinux
+Requires:       eucalyptus-selinux > 0.2
 Requires:       ipset
 Requires:       iptables
 # nginx 1.9.13 added perl as a loadable module (EUCA-12734)
@@ -434,30 +438,16 @@ export JAVA_HOME='/usr/lib/jvm/java-1.8.0' && export JAVA='$JAVA_HOME/jre/bin/ja
     --with-db-home=%{_prefix} \
     --with-extra-version=%{release}
 
+%if %{with coverity}
+# Meant to be used with rpmbuild -bc
+%{coverity_analysis_dir}/bin/cov-build --dir .coverity-build make
+%else
 make %{?_smp_mflags}
+%endif
 
 
 %install
 make install DESTDIR=$RPM_BUILD_ROOT
-
-# Create the directories where components store their data
-mkdir -p $RPM_BUILD_ROOT/var/lib/eucalyptus
-touch $RPM_BUILD_ROOT/var/lib/eucalyptus/services
-for dir in bukkits CC db keys ldap upgrade vmware volumes webapps; do
-    install -d -m 0700 $RPM_BUILD_ROOT/var/lib/eucalyptus/$dir
-done
-install -d -m 0771 $RPM_BUILD_ROOT/var/lib/eucalyptus/instances
-install -d -m 0755 $RPM_BUILD_ROOT/var/run/eucalyptus/net
-install -d -m 0750 $RPM_BUILD_ROOT/var/run/eucalyptus/status
-
-# Put udev rules in the right place
-mkdir -p $RPM_BUILD_ROOT/lib/udev/rules.d
-cp -p $RPM_BUILD_ROOT/usr/share/eucalyptus/udev/rules.d/12-dm-permissions.rules $RPM_BUILD_ROOT/lib/udev/rules.d/12-dm-permissions.rules
-cp -p $RPM_BUILD_ROOT/usr/share/eucalyptus/udev/rules.d/55-openiscsi.rules $RPM_BUILD_ROOT/lib/udev/rules.d/55-openiscsi.rules
-# FIXME:  iscsidev.sh belongs in /usr/share/eucalyptus [RT:2093]
-mkdir -p $RPM_BUILD_ROOT/etc/udev/scripts
-install -m 0755 $RPM_BUILD_ROOT/usr/share/eucalyptus/udev/iscsidev.sh $RPM_BUILD_ROOT/etc/udev/scripts/iscsidev.sh
-rm -rf $RPM_BUILD_ROOT/usr/share/eucalyptus/udev
 
 # Store admin tool config files
 mkdir -p $RPM_BUILD_ROOT/%{_sysconfdir}/eucalyptus-admin
@@ -466,11 +456,12 @@ cp -Rp admin-tools/conf/* $RPM_BUILD_ROOT/%{_sysconfdir}/eucalyptus-admin
 
 %files
 %license LICENSE
-%doc INSTALL README
+%doc INSTALL README.md
 
 %attr(-,eucalyptus,eucalyptus) %dir /etc/eucalyptus
 %config(noreplace) /etc/eucalyptus/eucalyptus.conf
 /etc/eucalyptus/eucalyptus-version
+/etc/eucalyptus/faults/
 # This is currently used for CC and NC httpd logs.
 /etc/logrotate.d/eucalyptus
 %attr(-,root,eucalyptus) %dir /usr/lib/eucalyptus
@@ -502,10 +493,8 @@ cp -Rp admin-tools/conf/* $RPM_BUILD_ROOT/%{_sysconfdir}/eucalyptus-admin
 
 %files blockdev-utils
 # SC and NC
-%doc tools/multipath.conf.example.* tools/iscsid.conf.example
-/etc/udev/scripts/iscsidev.sh
-/lib/udev/rules.d/12-dm-permissions.rules
-/lib/udev/rules.d/55-openiscsi*.rules
+%{_udevrulesdir}/55-eucalyptus-openiscsi.rules
+%{_libexecdir}/eucalyptus/check-iscsi-target-name
 /usr/share/eucalyptus/connect_iscsitarget.pl
 /usr/share/eucalyptus/connect_iscsitarget_main.pl
 /usr/share/eucalyptus/connect_iscsitarget_sc.pl
@@ -523,8 +512,8 @@ cp -Rp admin-tools/conf/* $RPM_BUILD_ROOT/%{_sysconfdir}/eucalyptus-admin
 %dir /etc/eucalyptus/cloud.d
 %dir /etc/eucalyptus/cloud.d/elb-security-policy
 %config(noreplace) /etc/eucalyptus/cloud.d/elb-security-policy/*
-%dir /etc/eucalyptus/cloud.d/init.d
 /etc/eucalyptus/cloud.d/scripts/
+%{_libexecdir}/eucalyptus/euca-upgrade
 /usr/sbin/eucalyptus-cloud
 %ghost /var/lib/eucalyptus/services
 %attr(-,eucalyptus,eucalyptus) /var/lib/eucalyptus/webapps/
@@ -538,8 +527,6 @@ cp -Rp admin-tools/conf/* $RPM_BUILD_ROOT/%{_sysconfdir}/eucalyptus-admin
 
 
 %files cloud
-/etc/eucalyptus/cloud.d/init.d/01_pg_kernel_params
-/usr/libexec/eucalyptus/euca-upgrade
 /usr/sbin/euca-lictool
 /usr/sbin/clcadmin-*
 /usr/share/eucalyptus/lic_default
@@ -561,9 +548,7 @@ cp -Rp admin-tools/conf/* $RPM_BUILD_ROOT/%{_sysconfdir}/eucalyptus-admin
 /usr/lib/eucalyptus/shutdownCC
 /usr/sbin/clusteradmin-*
 /usr/sbin/eucalyptus-cluster
-/usr/share/eucalyptus/vtunall.conf.template
 /usr/share/eucalyptus/dynserv.pl
-/usr/share/eucalyptus/getstats_net.pl
 %{_unitdir}/eucalyptus-cc.service
 %{_unitdir}/eucalyptus-cluster.service
 
@@ -576,10 +561,11 @@ cp -Rp admin-tools/conf/* $RPM_BUILD_ROOT/%{_sysconfdir}/eucalyptus-admin
 %{axis2c_home}/services/EucalyptusNC/
 %attr(-,eucalyptus,eucalyptus) %dir /var/lib/eucalyptus/instances
 %{_libexecdir}/eucalyptus/nodeadmin-manage-volume-connections
+%dir /etc/libvirt/hooks
+/etc/libvirt/hooks/qemu
 /usr/sbin/euca_test_nc
 /usr/sbin/eucalyptus-node
-/usr/sbin/nodeadmin-*
-/usr/share/eucalyptus/authorize-migration-keys.pl
+/usr/share/eucalyptus/authorize-migration-keys
 /usr/share/eucalyptus/detach.pl
 /usr/share/eucalyptus/gen_kvm_libvirt_xml
 /usr/share/eucalyptus/gen_libvirt_xml
@@ -622,11 +608,13 @@ cp -Rp admin-tools/conf/* $RPM_BUILD_ROOT/%{_sysconfdir}/eucalyptus-admin
 %{_libexecdir}/eucalyptus/announce-arp
 %{_sbindir}/eucanetd
 %attr(-,eucalyptus,eucalyptus) /var/run/eucalyptus/net
+/usr/share/eucalyptus/nginx_md.conf
 /usr/share/eucalyptus/nginx_proxy.conf
 /usr/lib/modules-load.d/70-eucanetd.conf
 %{_sysctldir}/70-eucanetd.conf
 %{_unitdir}/eucanetd.service
-
+%{_unitdir}/eucanetd-dhcpd*.service
+%{_unitdir}/eucanetd-nginx.service
 
 %files imaging-toolkit
 %{_libexecdir}/eucalyptus/euca-run-workflow
@@ -675,6 +663,7 @@ exit 0
 # group to connect to the system instance without authenticating
 getent group libvirt >/dev/null || groupadd -r libvirt
 usermod -a -G libvirt eucalyptus || :
+/usr/lib/systemd/systemd-modules-load || :
 
 %post -n eucanetd
 %systemd_post eucanetd.service
@@ -708,6 +697,68 @@ usermod -a -G libvirt eucalyptus || :
 
 
 %changelog
+* Fri Jan 20 2017 Garrett Holmstrom <gholms@fedoraproject.org> - 4.4.0
+- Moved euca-upgrade script to the same package as its systemd unit (EUCA-13139)
+- Bumped minimum eucalyptus-java-deps version
+
+* Tue Jan 17 2017 Matt Bacchi <mbacchi@hpe.com> - 4.4.0
+- Removed 01_pg_kernel_params and /etc/eucalyptus/cloud.d/init.d (EUCA-12644)
+
+* Fri Jan 13 2017 Garrett Holmstrom <gholms@hpe.com> - 4.4.0
+- Bumped eucanetd and nc's eucalyptus-selinux minimum version to 0.2 (EUCA-12424)
+
+* Fri Jan  6 2017 Garrett Holmstrom <gholms@hpe.com> - 4.4.0
+- Added /etc/eucalyptus/faults (EUCA-12391)
+- Let makefiles handle creation of /var/lib/eucalyptus/* (EUCA-508)
+- Removed nodeadmin-(un)pack scripts (EUCA-13042)
+
+* Thu Jan  5 2017 Garrett Holmstrom <gholms@hpe.com> - 4.4.0
+- Removed file extension from authorize-migration-keys
+
+* Thu Jan  5 2017 Matt Bacchi <mbacchi@hpe.com> - 4.4.0
+- authorize-migration-keys is now a python script (EUCA-12883)
+- Avoid packaging .pyc/.pyo byte compiled files in NC package (EUCA-12883)
+
+* Thu Dec 22 2016 Matt Bacchi <mbacchi@hpe.com> - 4.4.0
+- Add new eucanetd service files (EUCA-12424)
+
+* Fri Dec 16 2016 Garrett Holmstrom <gholms@hpe.com> - 4.4.0
+- Moved iscsidev.sh to $libexecdir/check-iscsi-target-name (EUCA-2414, EUCA-12646)
+- Moved udev rules to /lib/udev/rules.d (EUCA-12645)
+
+* Tue Dec  6 2016 Matt Bacchi <mbacchi@hpe.com> - 4.3.1
+- Run systemd-modules-load in nc package post scriptlet (EUCA-12983)
+
+* Fri Dec  2 2016 Matt Bacchi <mbacchi@hpe.com> - 4.3.1
+- Added /etc/libvirt/hooks/qemu to nc package (EUCA-12594)
+
+* Tue Nov 29 2016 Matt Bacchi <mbacchi@hpe.com> - 4.4.0
+- Change README to README.md
+
+* Tue Nov 15 2016 Garrett Holmstrom <gholms@hpe.com> - 4.4.0
+- Added rbd dependency to the sc package (EUCA-12941)
+
+* Fri Nov 11 2016 Matt Bacchi <mbacchi@hpe.com> - 4.4.0
+- Removed vtun dependency and vtunall template (EUCA-12755)
+
+* Wed Nov  9 2016 Garrett Holmstrom <gholms@hpe.com> - 4.3.1
+- Added "coverity" build option
+
+* Fri Nov  4 2016 Matt Bacchi <mbacchi@hpe.com> - 4.4.0
+- Added nginx_md.conf (EUCA-12893)
+
+* Tue Nov  1 2016 Matt Bacchi <mbacchi@hpe.com> - 4.4.0
+- Removed getstats_net.pl (EUCA-12864)
+
+* Thu Oct 27 2016 Garrett Holmstrom <gholms@hpe.com> - 4.3.1
+- Bumped minimum eucalyptus-java-deps version (EUCA-12885)
+
+* Wed Oct 12 2016 Garrett Holmstrom <gholms@hpe.com> - 4.4.0
+- Version bump (4.4.0)
+
+* Wed Oct 12 2016 Garrett Holmstrom <gholms@hpe.com> - 4.3.1
+- Version bump (4.3.1)
+
 * Fri Sep  9 2016 Garrett Holmstrom <gholms@hpe.com> - 4.3.0.1
 - Added nginx >= 1.9.13 dependency to eucanetd package (EUCA-12734)
 
@@ -743,7 +794,7 @@ usermod -a -G libvirt eucalyptus || :
 * Thu May  5 2016 Garrett Holmstrom <gholms@hpe.com> - 4.3.0
 - Added node support scripts (EUCA-12285)
 
-* Fri Apr  7 2016 Garrett Holmstrom <gholms@hpe.com> - 4.3.0
+* Fri Apr  8 2016 Garrett Holmstrom <gholms@hpe.com> - 4.3.0
 - Removed old admin tools, except for eureport-*
 - eucalyptus-admin-tools may now be installed standalone
 
@@ -786,6 +837,11 @@ usermod -a -G libvirt eucalyptus || :
 * Wed Feb 10 2016 Eucalyptus Release Engineering <support@eucalyptus.com> - 4.3.0
 - Added compatibility symlinks for eucalyptus-cluster/node systemd units
 
+* Tue Feb  9 2016 Eucalyptus Release Engineering <support@eucalyptus.com> - 4.3.0
+- Don't install euca-imager
+- Added seabios dependency to nc package (EUCA-12003)
+- Provide eucalyptus-node and eucalyptus-cluster
+
 * Mon Feb  8 2016 Eucalyptus Release Engineering <support@eucalyptus.com> - 4.3.0
 - Removed old cruft
 - Started loading sysctl values where needed on RHEL 7
@@ -798,11 +854,6 @@ usermod -a -G libvirt eucalyptus || :
 - Switched to eucalyptus-provided euca-WSDL2C.sh
 - Added main executables for CC and NC
 - Stopped tracking temporary CC and NC httpd config files
-
-* Tue Jan 21 2016 Eucalyptus Release Engineering <support@eucalyptus.com> - 4.3.0
-- Don't install euca-imager
-- Added seabios dependency to nc package (EUCA-12003)
-- Provide eucalyptus-node and eucalyptus-cluster
 
 * Thu Jan 21 2016 Eucalyptus Release Engineering <support@eucalyptus.com> - 4.3.0
 - Depend on unversioned postgresql packages for RHEL 7
@@ -896,7 +947,7 @@ usermod -a -G libvirt eucalyptus || :
 - Added eucalyptus-status group (EUCA-9958)
 - Added /var/run/eucalyptus/status dir (EUCA-9958)
 
-* Tue Sep  5 2014 Eucalyptus Release Engineering <support@eucalyptus.com> - 4.0.2
+* Fri Sep  5 2014 Eucalyptus Release Engineering <support@eucalyptus.com> - 4.0.2
 - Version bump (4.0.2)
 
 * Tue Jul 22 2014 Eucalyptus Release Engineering <support@eucalyptus.com> - 4.1.0-0
@@ -909,7 +960,7 @@ usermod -a -G libvirt eucalyptus || :
 * Tue Jun 17 2014 Eucalyptus Release Engineering <support@eucalyptus.com> - 4.0.1-0
 - Switched to monolithic source tarball naming
 
-* Mon Jun 13 2014 Eucalyptus Release Engineering <support@eucalyptus.com> - 4.0.1-0
+* Fri Jun 13 2014 Eucalyptus Release Engineering <support@eucalyptus.com> - 4.0.1-0
 - Moved httpd-cc.conf and httpd-nc.conf to /var/run/eucalyptus
 - Dropped osg package (EUCA-9468)
 - Moved WS-Security client policies to /usr/share/eucalyptus/policies (EUCA-8706)
@@ -974,7 +1025,7 @@ usermod -a -G libvirt eucalyptus || :
 * Tue Jul  2 2013 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.4.0-0
 - Dropped RHEL 5 support
 
-* Mon Jun 21 2013 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.4.0-0
+* Mon Jun 24 2013 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.4.0-0
 - Updated to 3.4.0
 
 * Thu Jun 20 2013 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.3.1-0
@@ -997,7 +1048,7 @@ usermod -a -G libvirt eucalyptus || :
 * Mon Nov 19 2012 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.2.0-0
 - Added sample multipath.conf docfile
 
-* Wed Nov 13 2012 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.2.0-0
+* Tue Nov 13 2012 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.2.0-0
 - Reload udev rules in postun instead of preun
 
 * Wed Oct 31 2012 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.2.0-0
@@ -1066,16 +1117,16 @@ usermod -a -G libvirt eucalyptus || :
 * Fri May 25 2012 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.1-0
 - Depend on bc so the eucalyptus-cloud init script works
 
-* Wed Apr 23 2012 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.1-0
+* Wed May 23 2012 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.1-0
 - Fixed bundled lib tarball explosion
 - Swapped in configure --with-db-home
 - Added extra version info
 - Cleaned up extraneous build stuff
 
-* Wed Apr 16 2012 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.1-0
+* Wed May 16 2012 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.1-0
 - Dropped old udev reload
 
-* Fri Apr 11 2012 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.1-0
+* Fri May 11 2012 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.1-0
 - Depend on postgres, not mysql
 
 * Mon Mar 19 2012 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.0.1-2
