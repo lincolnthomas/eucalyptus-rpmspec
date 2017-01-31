@@ -743,7 +743,7 @@ usermod -a -G libvirt eucalyptus || :
 * Thu May  5 2016 Garrett Holmstrom <gholms@hpe.com> - 4.3.0
 - Added node support scripts (EUCA-12285)
 
-* Thu Apr  7 2016 Garrett Holmstrom <gholms@hpe.com> - 4.3.0
+* Fri Apr  7 2016 Garrett Holmstrom <gholms@hpe.com> - 4.3.0
 - Removed old admin tools, except for eureport-*
 - eucalyptus-admin-tools may now be installed standalone
 
@@ -799,7 +799,7 @@ usermod -a -G libvirt eucalyptus || :
 - Added main executables for CC and NC
 - Stopped tracking temporary CC and NC httpd config files
 
-* Thu Jan 21 2016 Eucalyptus Release Engineering <support@eucalyptus.com> - 4.3.0
+* Tue Jan 21 2016 Eucalyptus Release Engineering <support@eucalyptus.com> - 4.3.0
 - Don't install euca-imager
 - Added seabios dependency to nc package (EUCA-12003)
 - Provide eucalyptus-node and eucalyptus-cluster
@@ -896,7 +896,7 @@ usermod -a -G libvirt eucalyptus || :
 - Added eucalyptus-status group (EUCA-9958)
 - Added /var/run/eucalyptus/status dir (EUCA-9958)
 
-* Fri Sep  5 2014 Eucalyptus Release Engineering <support@eucalyptus.com> - 4.0.2
+* Tue Sep  5 2014 Eucalyptus Release Engineering <support@eucalyptus.com> - 4.0.2
 - Version bump (4.0.2)
 
 * Tue Jul 22 2014 Eucalyptus Release Engineering <support@eucalyptus.com> - 4.1.0-0
@@ -909,7 +909,7 @@ usermod -a -G libvirt eucalyptus || :
 * Tue Jun 17 2014 Eucalyptus Release Engineering <support@eucalyptus.com> - 4.0.1-0
 - Switched to monolithic source tarball naming
 
-* Fri Jun 13 2014 Eucalyptus Release Engineering <support@eucalyptus.com> - 4.0.1-0
+* Mon Jun 13 2014 Eucalyptus Release Engineering <support@eucalyptus.com> - 4.0.1-0
 - Moved httpd-cc.conf and httpd-nc.conf to /var/run/eucalyptus
 - Dropped osg package (EUCA-9468)
 - Moved WS-Security client policies to /usr/share/eucalyptus/policies (EUCA-8706)
@@ -974,7 +974,7 @@ usermod -a -G libvirt eucalyptus || :
 * Tue Jul  2 2013 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.4.0-0
 - Dropped RHEL 5 support
 
-* Fri Jun 21 2013 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.4.0-0
+* Mon Jun 21 2013 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.4.0-0
 - Updated to 3.4.0
 
 * Thu Jun 20 2013 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.3.1-0
@@ -997,7 +997,7 @@ usermod -a -G libvirt eucalyptus || :
 * Mon Nov 19 2012 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.2.0-0
 - Added sample multipath.conf docfile
 
-* Tue Nov 13 2012 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.2.0-0
+* Wed Nov 13 2012 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.2.0-0
 - Reload udev rules in postun instead of preun
 
 * Wed Oct 31 2012 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.2.0-0
@@ -1066,16 +1066,16 @@ usermod -a -G libvirt eucalyptus || :
 * Fri May 25 2012 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.1-0
 - Depend on bc so the eucalyptus-cloud init script works
 
-* Mon Apr 23 2012 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.1-0
+* Wed Apr 23 2012 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.1-0
 - Fixed bundled lib tarball explosion
 - Swapped in configure --with-db-home
 - Added extra version info
 - Cleaned up extraneous build stuff
 
-* Mon Apr 16 2012 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.1-0
+* Wed Apr 16 2012 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.1-0
 - Dropped old udev reload
 
-* Wed Apr 11 2012 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.1-0
+* Fri Apr 11 2012 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.1-0
 - Depend on postgres, not mysql
 
 * Mon Mar 19 2012 Eucalyptus Release Engineering <support@eucalyptus.com> - 3.0.1-2
